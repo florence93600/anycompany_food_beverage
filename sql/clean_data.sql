@@ -49,7 +49,13 @@ SELECT
 FROM deduplicated
 WHERE rn = 1;
 --Test affichage de la table SILVER.customer_demographics------------------------------------------------------------------
+SELECT COUNT(*) FROM SILVER.customer_demographics_clean;
 SELECT * FROM SILVER.customer_demographics_clean LIMIT 10;
+--Vérification des âges incohérents---------------------------
+SELECT *
+FROM SILVER.customer_demographics_clean
+WHERE age < 0 OR age > 100;
+
 --2.Nettoyage de la table BRONZE.customer_service_interactions-------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.customer_service_interactions_clean AS
 WITH deduplicated AS (
@@ -110,16 +116,26 @@ SELECT
     END AS customer_satisfaction
 FROM deduplicated
 WHERE rn = 1;
---Test d'affichage de la table SILVER.customer_service_interactions_clean---------------------------------
-SELECT * FROM SILVER.customer_service_interactions_clean LIMIT 10;
+--Verification de la table SILVER.customer_service_interactions_clean---------------------------------
+-- Nombre total d’interactions
+SELECT COUNT(*) FROM SILVER.customer_service_interactions_clean;
+-- Vérification des durées anormales
+SELECT *
+FROM SILVER.customer_service_interactions_clean
+WHERE duration_minutes IS NULL;
+-- Vérification de la satisfaction hors bornes
+SELECT *
+FROM SILVER.customer_service_interactions_clean
+WHERE customer_satisfaction IS NULL;
 
 --3.Nettoyage de la table BRONZE.financial_transactions-----------------------------------------------------------------------------------
 CREATE TABLE SILVER.financial_transactions_clean AS
 SELECT DISTINCT *
 FROM BRONZE.financial_transactions
 WHERE amount > 0;
---Test d'affichage de la table SILVER.fnancial_transactions_clean
-SELECT * FROM SILVER.FINANCIAL_TRANSACTIONS_CLEAN LIMIT 10;
+--vérification table SILVER.fnancial_transactions_clean
+select * from SILVER.FINANCIAL_TRANSACTIONS_CLEAN;
+
 --4.Nettoyage de la table BRONZE.promotions_data-----------------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.promotions_data_clean AS
 WITH deduplicated AS (
@@ -167,8 +183,17 @@ WHERE rn = 1
   AND start_date IS NOT NULL
   AND end_date IS NOT NULL
   AND start_date <= end_date;
---Test d'affichage de la table SILVER.promotions_data_clean---------------------------------------
-SELECT * FROM SILVER.promotions_data_clean LIMIT 10;
+--Vérification de la table SILVER.promotions_data_clean---------------------------------------
+-- Vérification du nombre de promotions
+SELECT COUNT(*) FROM SILVER.promotions_data_clean;
+-- Promotions avec discount nul
+SELECT *
+FROM SILVER.promotions_data_clean
+WHERE discount_percentage IS NULL;
+-- Promotions avec durée négative
+SELECT *
+FROM SILVER.promotions_data_clean
+WHERE promotion_duration_days < 0;
 
 --5.Nettoyage de la table BRONZE.marketing_campaigns-----------------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.marketing_campaigns_clean AS
@@ -242,8 +267,17 @@ WHERE rn = 1
   AND start_date IS NOT NULL
   AND end_date IS NOT NULL
   AND start_date <= end_date;
---Test d'affichage de la table SILVER.marketing_campaigns_clean---------------------------------------------------------------
-SELECT * FROM SILVER.marketing_campaigns_clean LIMIT 10;
+--Vérification de la table SILVER.marketing_campaigns_clean---------------------------------------------------------------
+-- Nombre de campagnes
+SELECT COUNT(*) FROM SILVER.marketing_campaigns_clean;
+-- Campagnes avec budget invalide
+SELECT *
+FROM SILVER.marketing_campaigns_clean
+WHERE budget IS NULL;
+-- Campagnes avec conversion rate invalide
+SELECT *
+FROM SILVER.marketing_campaigns_clean
+WHERE conversion_rate IS NULL;
 
 --6.Nettoyage de la table BRONZE.product_reviews----------------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.product_reviews_clean AS
@@ -296,9 +330,17 @@ SELECT
 FROM deduplicated
 WHERE rn = 1
   AND review_date IS NOT NULL;
---Test d'affichage de la table SILVER.product_reviews_clean--------------------------
-SELECT * FROM SILVER.product_reviews_clean LIMIT 10;
-
+--Vérification de la table SILVER.product_reviews_clean--------------------------
+-- Nombre total d’avis
+SELECT COUNT(*) FROM SILVER.product_reviews_clean;
+-- Vérifier les notes invalides
+SELECT *
+FROM SILVER.product_reviews_clean
+WHERE rating IS NULL;
+-- Répartition des sentiments
+SELECT review_sentiment, COUNT(*)
+FROM SILVER.product_reviews_clean
+GROUP BY review_sentiment;
 --7.Nettoyage de la table BRONZE.inventory----------------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.inventory_clean AS
 WITH deduplicated AS (
@@ -357,9 +399,17 @@ SELECT
     END AS needs_restock
 FROM deduplicated
 WHERE rn = 1;
---Test d'affichage de la table SILVER.inventory_clean-----------------------------------------------
-SELECT * FROM SILVER.inventory_clean LIMIT 10;
-
+--Vérification de la table SILVER.inventory_clean-----------------------------------------------
+-- Nombre de lignes
+SELECT COUNT(*) FROM SILVER.inventory_clean;
+-- Produits en rupture
+SELECT *
+FROM SILVER.inventory_clean
+WHERE stock_status = 'OUT_OF_STOCK';
+-- Produits à réapprovisionner
+SELECT *
+FROM SILVER.inventory_clean
+WHERE needs_restock = TRUE;
 --8.Nettoyage de la table BRONZE.store_locations----------------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.store_locations_clean AS
 WITH deduplicated AS (
@@ -419,9 +469,17 @@ SELECT
     END AS employees_per_1000_sqft
 FROM deduplicated
 WHERE rn = 1;
---Test d'affichage de la table SILVER.store_locations_clean-------------------------------------------------------------------------------
-SELECT * FROM SILVER.store_locations_clean LIMIT 10;
-
+--Vérification table SILVER.store_locations_clean-----------------------------------------------------------------------------------
+-- Nombre de magasins
+SELECT COUNT(*) FROM SILVER.store_locations_clean;
+-- Magasins sans surface valide
+SELECT *
+FROM SILVER.store_locations_clean
+WHERE square_footage IS NULL;
+-- Répartition par taille
+SELECT store_size_category, COUNT(*)
+FROM SILVER.store_locations_clean
+GROUP BY store_size_category;
 --9. Nettoyage de la table BRONZE.logistics_and_shipping----------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.logistics_and_shipping_clean AS
 WITH deduplicated AS (
@@ -486,9 +544,17 @@ SELECT
     END AS delivery_issue
 FROM deduplicated
 WHERE rn = 1;
---Test d'affichage de la table SILVER.logistics_and_shipping_clean------------------------------------------------------------------------
-SELECT * FROM SILVER.logistics_and_shipping_clean LIMIT 10;
-
+--Vérification de la table SILVER.logistics_and_shipping_clean---------------------------------------------------------------------------
+-- Nombre total d’expéditions
+SELECT COUNT(*) FROM SILVER.logistics_and_shipping_clean;
+-- Expéditions avec problème de dates
+SELECT *
+FROM SILVER.logistics_and_shipping_clean
+WHERE delivery_issue = TRUE;
+-- Taux de retours
+SELECT
+  COUNT_IF(is_returned = TRUE) * 100.0 / COUNT(*) AS return_rate_pct
+FROM SILVER.logistics_and_shipping_clean;
 --10. Nettoyage de la table BRONZE.supplier_information----------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.supplier_information_clean AS
 WITH deduplicated AS (
@@ -550,9 +616,17 @@ SELECT
     END AS supplier_global_score
 FROM deduplicated
 WHERE rn = 1;
---Test d'affichage de la table SILVER.supplier_information_clean-------------------------------------------------------------------
-SELECT * FROM SILVER.supplier_information_clean LIMIT 10;
-
+--Vérification de la table SILVER.supplier_information_clean-------------------------------------------------------------------
+-- Nombre de fournisseurs
+SELECT COUNT(*) FROM SILVER.supplier_information_clean;
+-- Fournisseurs avec score invalide
+SELECT *
+FROM SILVER.supplier_information_clean
+WHERE reliability_score IS NULL;
+-- Répartition par catégorie de fiabilité
+SELECT reliability_category, COUNT(*)
+FROM SILVER.supplier_information_clean
+GROUP BY reliability_category;
 --11. Nettoyage de la table BRONZE.employee_records---------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.employee_records_clean AS
 WITH deduplicated AS (
@@ -608,5 +682,14 @@ SELECT
 FROM deduplicated
 WHERE rn = 1
   AND hire_date >= date_of_birth;
---Test d'affichage de la table SILVER.employee_records_clean----------------------------------------------------------------------
-SELECT * FROM SILVER.employee_records_clean LIMIT 10 ;
+--Vérification de la table SILVER.employee_records_clean----------------------------------------------------------------------
+-- Nombre total d’employés
+SELECT COUNT(*) FROM SILVER.employee_records_clean;
+-- Employés avec salaire invalide
+SELECT *
+FROM SILVER.employee_records_clean
+WHERE salary IS NULL;
+-- Répartition par département
+SELECT department, COUNT(*)
+FROM SILVER.employee_records_clean
+GROUP BY department;
