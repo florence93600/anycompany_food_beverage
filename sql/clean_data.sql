@@ -1,6 +1,9 @@
 -- Phase 1– Data Preparation & Ingestion-------------------------------------------------------------------------------------------
 
 --Etape 4- Nettoyage de données-----------------------------------------------------------------------------------------------------
+USE DATABASE ANYCOMPANY_LAB;
+
+--Etape 4- Nettoyage de données-----------------------------------------------------------------------------------------------------
 --1.Nettoyage de la table BRONZE.customer_demographics------------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.customer_demographics_clean AS
 WITH deduplicated AS (
@@ -287,7 +290,7 @@ WITH deduplicated AS (
         product_id,
         reviewer_id,
         reviewer_name,
-        rating,
+        TRY_TO_NUMBER(rating) AS rating,
         review_date,
         review_title,
         review_text,
@@ -301,36 +304,31 @@ WITH deduplicated AS (
 )
 SELECT
     review_id,
-    -- Identifiants 
     product_id,
     reviewer_id,
-    -- Normalisation reviewer_name
     INITCAP(TRIM(reviewer_name)) AS reviewer_name,
-    -- Review date
     review_date,
-    -- Validation "Rating" 
+    -- Validation Rating (SAFE)
     CASE
         WHEN rating BETWEEN 1 AND 5 THEN rating
         ELSE NULL
     END AS rating,
-    -- Review title
     INITCAP(TRIM(review_title)) AS review_title,
-    -- Nettoyage Review_text
     TRIM(review_text) AS review_text,
-    -- Text length (useful for sentiment proxy)
     LENGTH(TRIM(review_text)) AS review_text_length,
-    -- Indicateur d'avis positif/négatif
+
     CASE
         WHEN rating >= 4 THEN 'POSITIVE'
         WHEN rating <= 2 THEN 'NEGATIVE'
         ELSE 'NEUTRAL'
     END AS review_sentiment,
-    -- Normalisation product_category
+
     INITCAP(TRIM(product_category)) AS product_category
 FROM deduplicated
 WHERE rn = 1
   AND review_date IS NOT NULL;
---Vérification de la table SILVER.product_reviews_clean--------------------------
+
+ --Vérification de la table SILVER.product_reviews_clean--------------------------
 -- Nombre total d’avis
 SELECT COUNT(*) FROM SILVER.product_reviews_clean;
 -- Vérifier les notes invalides
@@ -342,63 +340,81 @@ SELECT review_sentiment, COUNT(*)
 FROM SILVER.product_reviews_clean
 GROUP BY review_sentiment;
 --7.Nettoyage de la table BRONZE.inventory----------------------------------------------------------------------------------
+
 CREATE OR REPLACE TABLE SILVER.inventory_clean AS
-WITH deduplicated AS (
+WITH parsed_inventory AS (
     SELECT
-        product_id,
-        product_category,
-        region,
-        country,
-        warehouse,
-        current_stock,
-        reorder_point,
-        lead_time,
-        last_restock_date,
+        raw_data:product_id::STRING AS product_id,
+        raw_data:product_category::STRING AS product_category,
+        raw_data:region::STRING AS region,
+        raw_data:country::STRING AS country,
+        raw_data:warehouse::STRING AS warehouse,
+        raw_data:current_stock::NUMBER AS current_stock,
+        raw_data:reorder_point::NUMBER AS reorder_point,
+        raw_data:lead_time::NUMBER AS lead_time,
+        raw_data:last_restock_date::DATE AS last_restock_date
+    FROM BRONZE.inventory
+),
+
+deduplicated AS (
+    SELECT
+        *,
         ROW_NUMBER() OVER (
             PARTITION BY product_id, region, warehouse
             ORDER BY last_restock_date DESC
         ) AS rn
-    FROM BRONZE.inventory
+    FROM parsed_inventory
     WHERE product_id IS NOT NULL
 )
+
 SELECT
     product_id,
-    -- Normalisation product_category
+
+    -- Normalize product category
     INITCAP(TRIM(product_category)) AS product_category,
-    -- Normalisation region
+
+    -- Normalize location fields
     UPPER(TRIM(region)) AS region,
-    UPPER(TRIM(country)) AS country,
+    INITCAP(TRIM(country)) AS country,
     INITCAP(TRIM(warehouse)) AS warehouse,
-    -- Validation du Stock 
+
+    -- Stock validation
     CASE
         WHEN current_stock >= 0 THEN current_stock
         ELSE NULL
     END AS current_stock,
-    -- validation Reorder_point 
+
+    -- Reorder point validation
     CASE
         WHEN reorder_point >= 0 THEN reorder_point
         ELSE NULL
     END AS reorder_point,
-    -- Validation Lead_time 
+
+    -- Lead time validation (days)
     CASE
         WHEN lead_time > 0 THEN lead_time
         ELSE NULL
     END AS lead_time,
+
     -- Last restock date
     last_restock_date,
-    -- Indicateur statut Stock
+
+    -- Stock status
     CASE
         WHEN current_stock = 0 THEN 'OUT_OF_STOCK'
         WHEN current_stock <= reorder_point THEN 'LOW_STOCK'
         ELSE 'IN_STOCK'
     END AS stock_status,
-    -- Indicateur réapprovisionnement 
+
+    -- Restock flag
     CASE
         WHEN current_stock <= reorder_point THEN TRUE
         ELSE FALSE
     END AS needs_restock
+
 FROM deduplicated
 WHERE rn = 1;
+
 --Vérification de la table SILVER.inventory_clean-----------------------------------------------
 -- Nombre de lignes
 SELECT COUNT(*) FROM SILVER.inventory_clean;
@@ -412,63 +428,81 @@ FROM SILVER.inventory_clean
 WHERE needs_restock = TRUE;
 --8.Nettoyage de la table BRONZE.store_locations----------------------------------------------------------------------------------
 CREATE OR REPLACE TABLE SILVER.store_locations_clean AS
-WITH deduplicated AS (
+WITH parsed_stores AS (
     SELECT
-        store_id,
-        store_name,
-        store_type,
-        region,
-        country,
-        city,
-        address,
-        postal_code,
-        square_footage,
-        employee_count,
+        raw_data:store_id::STRING AS store_id,
+        raw_data:store_name::STRING AS store_name,
+        raw_data:store_type::STRING AS store_type,
+        raw_data:region::STRING AS region,
+        raw_data:country::STRING AS country,
+        raw_data:city::STRING AS city,
+        raw_data:address::STRING AS address,
+        raw_data:postal_code::STRING AS postal_code,
+        raw_data:square_footage::NUMBER AS square_footage,
+        raw_data:employee_count::NUMBER AS employee_count
+    FROM BRONZE.store_locations
+),
+
+deduplicated AS (
+    SELECT
+        *,
         ROW_NUMBER() OVER (
             PARTITION BY store_id
             ORDER BY store_id
         ) AS rn
-    FROM BRONZE.store_locations
+    FROM parsed_stores
     WHERE store_id IS NOT NULL
 )
+
 SELECT
     store_id,
-    -- Store_name
+
+    -- Store name
     INITCAP(TRIM(store_name)) AS store_name,
-    -- Normalisation store_type
+
+    -- Normalize store type
     INITCAP(TRIM(store_type)) AS store_type,
-    -- Normalisation region
+
+    -- Normalize location fields
     UPPER(TRIM(region)) AS region,
     INITCAP(TRIM(country)) AS country,
     INITCAP(TRIM(city)) AS city,
-    -- Nettoyage address
+
+    -- Clean address
     TRIM(address) AS address,
-    -- Postal_code
+
+    -- Postal code
     postal_code,
-    -- Validation Square_footage 
+
+    -- Square footage validation
     CASE
         WHEN square_footage > 0 THEN square_footage
         ELSE NULL
     END AS square_footage,
-    -- Validation Employee_count 
+
+    -- Employee count validation
     CASE
         WHEN employee_count >= 0 THEN employee_count
         ELSE NULL
     END AS employee_count,
-    -- Catégorisation de la taille du magasin 
+
+    -- Store size category
     CASE
         WHEN square_footage < 3000 THEN 'SMALL'
         WHEN square_footage BETWEEN 3000 AND 7000 THEN 'MEDIUM'
         ELSE 'LARGE'
     END AS store_size_category,
-    -- Employees 
+
+    -- Employees per 1000 sqft
     CASE
         WHEN square_footage > 0 AND employee_count >= 0
         THEN (employee_count / square_footage) * 1000
         ELSE NULL
     END AS employees_per_1000_sqft
+
 FROM deduplicated
 WHERE rn = 1;
+
 --Vérification table SILVER.store_locations_clean-----------------------------------------------------------------------------------
 -- Nombre de magasins
 SELECT COUNT(*) FROM SILVER.store_locations_clean;

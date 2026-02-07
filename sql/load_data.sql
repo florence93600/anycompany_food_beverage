@@ -18,21 +18,25 @@ CREATE OR REPLACE STAGE BRONZE.food_beverage_stage
 URL = 's3://logbrain-datalake/datasets/food-beverage/' ;
 
 
-----Définition des formats de fichiers CSV et JSON------
-create or replace file format BRONZE.csv
+---4. Définition des formats de fichiers CSV et JSON------
+CREATE OR REPLACE FILE FORMAT BRONZE.csv
     TYPE = 'CSV'
     FIELD_DELIMITER = ','
     SKIP_HEADER = 1
     FIELD_OPTIONALLY_ENCLOSED_BY = '"'
     NULL_IF = ('NULL', 'null', '')
-    EMPTY_FIELD_AS_NULL = TRUE;
+    EMPTY_FIELD_AS_NULL = TRUE
+    ENCODING = 'UTF8'
+    REPLACE_INVALID_CHARACTERS = TRUE  
+    ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE;
 
 CREATE OR REPLACE FILE FORMAT BRONZE.json
   type='json'
   strip_outer_array=true;
+
   
 --Etape 2- Création des tables-------------------------------------------------------------------------------
---1.Création de la table customer_demographics----------------------------------------------------
+--1.Création de la table BRONZE.customer_demographics----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.customer_demographics (
     customer_id NUMBER,
     name VARCHAR(100),
@@ -45,7 +49,7 @@ CREATE OR REPLACE TABLE BRONZE.customer_demographics (
     annual_income NUMBER (12,2)
 );
 
---2.Création de la table customer_service_interactions----------------------------------------------------
+--2.Création de la table BRONZE.customer_service_interactions----------------------------------------------------
 
 CREATE OR REPLACE TABLE BRONZE.CUSTOMER_SERVICE_INTERACTIONS (
     interaction_id VARCHAR(20),
@@ -59,7 +63,7 @@ CREATE OR REPLACE TABLE BRONZE.CUSTOMER_SERVICE_INTERACTIONS (
     customer_satisfaction NUMBER
 );
 
---3.Création de la table financial_transactions----------------------------------------------------
+--3.Création de la table BRONZE.financial_transactions----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.financial_transactions (
     transaction_id VARCHAR(20),
     transaction_date DATE,
@@ -71,7 +75,7 @@ CREATE OR REPLACE TABLE BRONZE.financial_transactions (
     account_code VARCHAR(20)
     );
     
---4.Création de la table promotions_data----------------------------------------------------
+--4.Création de la table BRONZE.promotions_data----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.promotions_data (
     promotion_id VARCHAR(20),
     product_category VARCHAR(50),
@@ -81,7 +85,7 @@ CREATE OR REPLACE TABLE BRONZE.promotions_data (
     end_date DATE,
     region VARCHAR(50)
     );
---5.Création de la table marketing_campaigns----------------------------------------------------
+--5.Création de la table BRONZE.marketing_campaigns----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.marketing_campaigns (
     campaign_id VARCHAR(20),
     campaign_name VARCHAR(100),
@@ -96,47 +100,30 @@ CREATE OR REPLACE TABLE BRONZE.marketing_campaigns (
     conversion_rate NUMBER(6,4)
     );
    
---6.Création de la table product_reviews----------------------------------------------------
+--6.Création de la table BRONZE.product_reviews----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.PRODUCT_REVIEWS (
-    review_id NUMBER,
-    product_id VARCHAR(20),
-    reviewer_id VARCHAR(30),
-    reviewer_name VARCHAR(100),
-    rating NUMBER,
-    review_date DATE,
-    review_title VARCHAR(200),
-    review_text VARCHAR(5000),
-    product_category VARCHAR(50)
+    review_id VARCHAR,
+    product_id VARCHAR,
+    reviewer_id VARCHAR,
+    reviewer_name VARCHAR,
+    rating VARCHAR,
+    review_date VARCHAR,
+    review_title VARCHAR,
+    review_text VARCHAR,
+    product_category VARCHAR -- La fameuse 9ème colonne (qui sera vide)
 );
 
-----7.Création de la table inventory----------------------------------------------------
+----7.Création de la table BRONZE.inventory----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.inventory (
-    product_id  VARCHAR(20),
-    product_category VARCHAR(50),
-    region VARCHAR(50),
-    country VARCHAR(50),
-    warehouse VARCHAR(100),
-    current_stock NUMBER,
-    reorder_point NUMBER,
-    lead_time NUMBER,
-    last_restock_date DATE
-   );
+    raw_data VARIANT
+    );
 
-----8.Création de la table store_locations----------------------------------------------------
-CREATE OR REPLACE TABLE BRONZE.store_locations(
-    store_id  VARCHAR(20),
-    store_name VARCHAR(100),
-    store_type VARCHAR(30),
-    region VARCHAR(50),
-    country VARCHAR(50),
-    city VARCHAR(100),
-    address VARCHAR(200),
-    postal_code NUMBER,
-    square_footage NUMBER(10,2),
-    employee_count NUMBER
-   );
+----8.Création de la table BRONZE.store_locations----------------------------------------------------
+CREATE OR REPLACE TABLE BRONZE.store_locations (
+    raw_data VARIANT
+    );
 
-----9.Création de la table logistics_and_shipping----------------------------------------------------
+----9.Création de la table BRONZE.logistics_and_shipping----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.logistics_and_shipping(
     shipment_id VARCHAR,
     order_id INTEGER,
@@ -149,7 +136,7 @@ CREATE OR REPLACE TABLE BRONZE.logistics_and_shipping(
     destination_country STRING,
     carrier  VARCHAR
    );
-----10.Création de la table supplier_information----------------------------------------------------
+----10.Création de la table BRONZE.supplier_information----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.supplier_information(
     supplier_id VARCHAR,
     supplier_name VARCHAR,
@@ -161,7 +148,8 @@ CREATE OR REPLACE TABLE BRONZE.supplier_information(
     reliability_score FLOAT,
     quality_rating STRING
     );
-----11.Création de la table employee_records----------------------------------------------------
+    
+----11.Création de la table BRONZE.employee_records----------------------------------------------------
 CREATE OR REPLACE TABLE BRONZE.employee_records(
     employee_id VARCHAR,
     name  VARCHAR,
@@ -176,93 +164,62 @@ CREATE OR REPLACE TABLE BRONZE.employee_records(
     );
 
 --Etape 3- Chargement des données-------------------------------------------------------------------------------
- --1.Chargement de la table customer_demographics---------------------------------------------------------------------------
+ --1.Chargement de la table BRONZE.customer_demographics---------------------------------------------------------------------------
 COPY INTO BRONZE.customer_demographics
 FROM @BRONZE.food_beverage_stage/customer_demographics.csv
 FILE_FORMAT = BRONZE.csv;
---Test de chargement de la table customer_demographics
- select * from BRONZE.customer_demographics;
 
---2.Chargement de la table customer_service_interactions --------------------------------------------------------------------
+--2.Chargement de la table BRONZE.customer_service_interactions --------------------------------------------------------------------
 COPY INTO BRONZE.CUSTOMER_SERVICE_INTERACTIONS
-FROM @BRONZE.FOOD_BEVERAGE_STAGE/customer_service_interactions.csv
+FROM @BRONZE.food_beverage_stage/customer_service_interactions.csv
 FILE_FORMAT=BRONZE.csv;
---Test de chargement de la table customer_service_interactions
- select * from BRONZE.customer_service_interactions;
  
---3.Chargement de la table financial_transactions-----------------------------------------------------------------------------------------
+--3.Chargement de la table BRONZE.financial_transactions-----------------------------------------------------------------------------------------
 COPY INTO BRONZE.financial_transactions
-FROM @BRONZE.FOOD_BEVERAGE_STAGE/financial_transactions.csv
+FROM @BRONZE.food_beverage_stage/financial_transactions.csv
 FILE_FORMAT=BRONZE.csv;
---Test de chargement de la table financial_transactions-----------------------------------------------------------------------------------
- select * from BRONZE.financial_transactions;
 
---4.Chargement de la table promotions_data ---------------------------------------------------------------------------
+--4.Chargement de la table BRONZE.promotions_data ---------------------------------------------------------------------------
 COPY INTO BRONZE.promotions_data
 FROM @BRONZE.food_beverage_stage/promotions-data.csv
 FILE_FORMAT =BRONZE.csv;
 
---Test de chargement de la table promotions_data-----------------------------------------------------------------------------------
- select * from BRONZE.promotions_data;
---5.Chargement de la table marketing_campaigns ---------------------------------------------------------------------------
+--5.Chargement de la table BRONZE.marketing_campaigns ---------------------------------------------------------------------------
 COPY INTO BRONZE.marketing_campaigns
 FROM @BRONZE.food_beverage_stage/marketing_campaigns.csv
 FILE_FORMAT = BRONZE.csv;
---Test de chargement de la table marketing_campaigns -----------------------------------------------------------------------------------
- select * from BRONZE.promotions_data;
  
---6.Chargement de la table product_reviews---------------------------------------------------------------------------
+--6.Chargement de la table BRONZE.product_reviews---------------------------------------------------------------------------
 COPY INTO BRONZE.PRODUCT_REVIEWS
-FROM @BRONZE.FOOD_BEVERAGE_STAGE/product_reviews.csv
-FILE_FORMAT = (
-    TYPE = 'CSV'
-    FIELD_DELIMITER = ','
-    SKIP_HEADER = 1
-    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
-    NULL_IF = ('NULL', 'null', '')
-    EMPTY_FIELD_AS_NULL = TRUE
-    ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE
-)
+FROM @BRONZE.food_beverage_stage/product_reviews.csv
+FILE_FORMAT = BRONZE.csv
 ON_ERROR = 'CONTINUE';
 
-
---Test de chargement de la table product_reviews -----------------------------------------------------------------------------------
- select * from BRONZE.product_reviews;
- 
- --7.Chargement de la table inventory ---------------------------------------------------------------------------
+ --7.Chargement de la table BRONZE.inventory ---------------------------------------------------------------------------
 COPY INTO BRONZE.inventory
 FROM @BRONZE.food_beverage_stage/inventory.json
-FILE_FORMAT = BRONZE.json
-MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
---Test de chargement de la table logistics_and_shipping ----------------------------------------------------------------------------------
+FILE_FORMAT = BRONZE.json;
 select * from BRONZE.inventory;
-
- --8.Chargement de la table store_locations ---------------------------------------------------------------------------
+ --8.Chargement de la table BRONZE.store_locations ---------------------------------------------------------------------------
 COPY INTO BRONZE.store_locations
 FROM @BRONZE.food_beverage_stage/store_locations.json
-FILE_FORMAT = BRONZE.json
-MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
---Test de chargement de la table logistics_and_shipping ----------------------------------------------------------------------------------
-select * from BRONZE.store_locations;
+FILE_FORMAT = BRONZE.json;
  
---9.Chargement de la table logistics_and_shipping ---------------------------------------------------------------------------
+--9.Chargement de la table BRONZE.logistics_and_shipping ---------------------------------------------------------------------------
 COPY INTO BRONZE.logistics_and_shipping
 FROM @BRONZE.food_beverage_stage/logistics_and_shipping.csv
 FILE_FORMAT = BRONZE.csv;
 
---Test de chargement de la table logistics_and_shipping ----------------------------------------------------------------------------------
-select * from BRONZE.logistics_and_shipping;
-
---10.Chargement de la table supplier_information ---------------------------------------------------------------------------
+--10.Chargement de la table BRONZE.supplier_information ---------------------------------------------------------------------------
 COPY INTO BRONZE.supplier_information
 FROM @BRONZE.food_beverage_stage/supplier_information.csv
 FILE_FORMAT = BRONZE.csv;
---Test de chargement de la table supplier_information ----------------------------------------------------------------------------------
-select * from BRONZE.supplier_information;
 
---11.Chargement de la table supplier_information ---------------------------------------------------------------------------
+--11.Chargement de la table BRONZE.supplier_information ---------------------------------------------------------------------------
 COPY INTO BRONZE.employee_records
 FROM @BRONZE.food_beverage_stage/employee_records.csv
 FILE_FORMAT = BRONZE.csv;
---Test de chargement de la table employee_records ----------------------------------------------------------------------------------
-select * from BRONZE.employee_records;
+
+
+
+
