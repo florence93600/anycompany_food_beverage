@@ -1,3 +1,4 @@
+
 -- Phase 1– Data Preparation & Ingestion-------------------------------------------------------------------------------------------
 
 --Etape 4- Nettoyage de données-----------------------------------------------------------------------------------------------------
@@ -5,725 +6,273 @@ USE DATABASE ANYCOMPANY_LAB;
 
 --Etape 4- Nettoyage de données-----------------------------------------------------------------------------------------------------
 --1.Nettoyage de la table BRONZE.customer_demographics------------------------------------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.customer_demographics_clean AS
-WITH deduplicated AS (
-    SELECT
-        customer_id,
-        name,
-        date_of_birth,
-        gender,
-        region,
-        country,
-        city,
-        marital_status,
-        annual_income,
-        ROW_NUMBER() OVER (
-            PARTITION BY customer_id
-            ORDER BY customer_id
-        ) AS rn
-    FROM BRONZE.customer_demographics
-    WHERE customer_id IS NOT NULL
-)
-SELECT
-    customer_id,
-    -- Nettoyage du nom 
-    INITCAP(TRIM(name)) AS customer_name,
-    -- Date de naissance
-    date_of_birth,
-    -- Âge 
-    DATEDIFF(year, date_of_birth, CURRENT_DATE()) AS age,
-    -- Genre
-    CASE
-        WHEN UPPER(gender) IN ('MALE', 'M') THEN 'MALE'
-        WHEN UPPER(gender) IN ('FEMALE', 'F') THEN 'FEMALE'
-        ELSE 'OTHER'
-    END AS gender,
-    -- Localisation
-    UPPER(TRIM(region)) AS region,
-    UPPER(TRIM(country)) AS country,
-    UPPER(TRIM(city)) AS city,
-    -- Statut marital
-    INITCAP(TRIM(marital_status)) AS marital_status,
-    -- Revenu annuel
-    CASE
-        WHEN annual_income > 0 THEN annual_income
-        ELSE NULL
-    END AS annual_income
-FROM deduplicated
-WHERE rn = 1;
---Test affichage de la table SILVER.customer_demographics------------------------------------------------------------------
-SELECT COUNT(*) FROM SILVER.customer_demographics_clean;
-SELECT * FROM SILVER.customer_demographics_clean LIMIT 10;
---Vérification des âges incohérents---------------------------
-SELECT *
-FROM SILVER.customer_demographics_clean
-WHERE age < 0 OR age > 100;
+CREATE OR REPLACE TABLE SILVER.CUSTOMER_DEMOGRAPHICS_CLEAN AS
+SELECT 
+    customer_id::NUMBER AS customer_id,
+    name::TEXT AS name,
+    date_of_birth::DATE AS date_of_birth,
+    gender::TEXT AS gender,
+    region::TEXT AS region,
+    country::TEXT AS country,
+    city::TEXT AS city,
+    marital_status::TEXT AS marital_status,
+    -- Nettoyage symboles ($) et typage strict
+    REGEXP_REPLACE(annual_income, '[^0-9.]', '')::NUMBER(12,2) AS annual_income
+FROM BRONZE.CUSTOMER_DEMOGRAPHICS
+QUALIFY ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY customer_id) = 1;
+--Affichage de la table SILVER.CUSTOMER_DEMOGRAPHICS_CLEAN
+SELECT * FROM SILVER.CUSTOMER_DEMOGRAPHICS_CLEAN LIMIT 10;
 
 --2.Nettoyage de la table BRONZE.customer_service_interactions-------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.customer_service_interactions_clean AS
-WITH deduplicated AS (
-    SELECT
-        interaction_id,
-        interaction_date,
-        interaction_type,
-        issue_category,
-        description,
-        duration_minutes,
-        resolution_status,
-        follow_up_required,
-        customer_satisfaction,
-        ROW_NUMBER() OVER (
-            PARTITION BY interaction_id
-            ORDER BY interaction_date DESC
-        ) AS rn
-    FROM BRONZE.customer_service_interactions
-    WHERE interaction_id IS NOT NULL
-)
-SELECT
-    interaction_id,
-    -- Interaction date
-    interaction_date,
-    -- interaction type
-    CASE
-        WHEN UPPER(interaction_type) IN ('PHONE', 'CALL') THEN 'PHONE'
-        WHEN UPPER(interaction_type) = 'EMAIL' THEN 'EMAIL'
-        WHEN UPPER(interaction_type) = 'CHAT' THEN 'CHAT'
-        ELSE 'OTHER'
-    END AS interaction_type,
-     -- Nettoyage de la colonne issue category
-    INITCAP(TRIM(issue_category)) AS issue_category,
-    --  description
-    TRIM(description) AS description,
-    -- Duration quality 
-    CASE
-        WHEN duration_minutes BETWEEN 1 AND 240 THEN duration_minutes
-        ELSE NULL
-    END AS duration_minutes,
-    --  resolution status
-    CASE
-        WHEN UPPER(resolution_status) = 'RESOLVED' THEN 'RESOLVED'
-        WHEN UPPER(resolution_status) = 'PENDING' THEN 'PENDING'
-        WHEN UPPER(resolution_status) = 'ESCALATED' THEN 'ESCALATED'
-        ELSE 'UNKNOWN'
-    END AS resolution_status,
-    -- Normalisation de la colonne Follow_up_required 
-    CASE
-        WHEN UPPER(follow_up_required) IN ('YES', 'Y', 'TRUE') THEN TRUE
-        WHEN UPPER(follow_up_required) IN ('NO', 'N', 'FALSE') THEN FALSE
-        ELSE NULL
-    END AS follow_up_required,
-    -- Customer_satisfaction 
-    CASE
-        WHEN customer_satisfaction BETWEEN 1 AND 5 THEN customer_satisfaction
-        ELSE NULL
-    END AS customer_satisfaction
-FROM deduplicated
-WHERE rn = 1;
---Verification de la table SILVER.customer_service_interactions_clean---------------------------------
--- Nombre total d’interactions
-SELECT COUNT(*) FROM SILVER.customer_service_interactions_clean;
--- Vérification des durées anormales
-SELECT *
-FROM SILVER.customer_service_interactions_clean
-WHERE duration_minutes IS NULL;
--- Vérification de la satisfaction hors bornes
-SELECT *
-FROM SILVER.customer_service_interactions_clean
-WHERE customer_satisfaction IS NULL;
+CREATE OR REPLACE TABLE SILVER.CUSTOMER_SERVICE_INTERACTIONS_CLEAN AS
+SELECT 
+    interaction_id::TEXT AS interaction_id,
+    interaction_date::DATE AS interaction_date,
+    interaction_type::TEXT AS interaction_type,
+    issue_category::TEXT AS issue_category,
+    description::TEXT AS description,
+    duration_minutes::NUMBER AS duration_minutes,
+    resolution_status::TEXT AS resolution_status,
+    follow_up_required::TEXT AS follow_up_required,
+    customer_satisfaction::NUMBER AS customer_satisfaction
+FROM BRONZE.CUSTOMER_SERVICE_INTERACTIONS
+QUALIFY ROW_NUMBER() OVER (PARTITION BY interaction_id ORDER BY interaction_date DESC) = 1;
+
+--Affichage de la table SILVER.CUSTOMER_SERVICE_INTERACTIONS_CLEAN
+SELECT * FROM SILVER.CUSTOMER_SERVICE_INTERACTIONS_CLEAN LIMIT 10;
 
 --3.Nettoyage de la table BRONZE.financial_transactions-----------------------------------------------------------------------------------
-CREATE TABLE SILVER.financial_transactions_clean AS
-SELECT DISTINCT *
-FROM BRONZE.financial_transactions
-WHERE amount > 0;
---vérification table SILVER.fnancial_transactions_clean
-select * from SILVER.FINANCIAL_TRANSACTIONS_CLEAN;
+CREATE OR REPLACE TABLE SILVER.FINANCIAL_TRANSACTIONS_CLEAN AS
+SELECT 
+    transaction_id::TEXT AS transaction_id,
+    transaction_date::DATE AS transaction_date,
+    transaction_type::TEXT AS transaction_type,
+    REGEXP_REPLACE(amount, '[^0-9.]', '')::NUMBER(12,2) AS amount,
+    payment_method::TEXT AS payment_method,
+    entity::TEXT AS entity,
+    region::TEXT AS region,
+    account_code::TEXT AS account_code
+FROM BRONZE.FINANCIAL_TRANSACTIONS
+WHERE transaction_id IS NOT NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY transaction_id ORDER BY transaction_date) = 1;
+
+--Affichage de la table SILVER.FINANCIAL_TRANSACTIONS_CLEAN
+SELECT * FROM SILVER.FINANCIAL_TRANSACTIONS_CLEAN LIMIT 10;
 
 --4.Nettoyage de la table BRONZE.promotions_data-----------------------------------------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.promotions_data_clean AS
-WITH deduplicated AS (
-    SELECT
-        promotion_id,
-        product_category,
-        promotion_type,
-        discount_percentage,
-        start_date,
-        end_date,
-        region,
-        ROW_NUMBER() OVER (
-            PARTITION BY promotion_id
-            ORDER BY start_date DESC
-        ) AS rn
-    FROM BRONZE.promotions_data
-    WHERE promotion_id IS NOT NULL
-)
-SELECT
-    promotion_id,
-    -- Normalisation de product_category
-    INITCAP(TRIM(product_category)) AS product_category,
-    -- Normalisation de promotion type
-    INITCAP(TRIM(promotion_type)) AS promotion_type,
-    -- Validation Discount 
-    CASE
-        WHEN discount_percentage BETWEEN 0 AND 1
-        THEN discount_percentage
-        ELSE NULL
-    END AS discount_percentage,
-    -- dates de Promotion 
-    start_date,
-    end_date,
-    -- Durée de Promotion 
-    DATEDIFF(day, start_date, end_date) AS promotion_duration_days,
-    -- Indicateur de promotion
-    CASE
-        WHEN CURRENT_DATE() BETWEEN start_date AND end_date THEN TRUE
-        ELSE FALSE
-    END AS is_active,
-    -- Normalisation de la region
-    UPPER(TRIM(region)) AS region
-FROM deduplicated
-WHERE rn = 1
-  AND start_date IS NOT NULL
-  AND end_date IS NOT NULL
-  AND start_date <= end_date;
---Vérification de la table SILVER.promotions_data_clean---------------------------------------
--- Vérification du nombre de promotions
-SELECT COUNT(*) FROM SILVER.promotions_data_clean;
--- Promotions avec discount nul
-SELECT *
-FROM SILVER.promotions_data_clean
-WHERE discount_percentage IS NULL;
--- Promotions avec durée négative
-SELECT *
-FROM SILVER.promotions_data_clean
-WHERE promotion_duration_days < 0;
+CREATE OR REPLACE TABLE SILVER.PROMOTIONS_DATA_CLEAN AS
+SELECT 
+    promotion_id::TEXT AS promotion_id,
+    product_category::TEXT AS product_category,
+    promotion_type::TEXT AS promotion_type,
+    REGEXP_REPLACE(discount_percentage, '[^0-9.]', '')::NUMBER(5,4) AS discount_percentage,
+    start_date::DATE AS start_date,
+    end_date::DATE AS end_date,
+    region::TEXT AS region
+FROM BRONZE.PROMOTIONS_DATA
+QUALIFY ROW_NUMBER() OVER (PARTITION BY promotion_id ORDER BY start_date) = 1;
+--Affichage de la table SILVER.PROMOTIONS_DATA_CLEAN
+SELECT * FROM SILVER.PROMOTIONS_DATA_CLEAN LIMIT 10;
 
 --5.Nettoyage de la table BRONZE.marketing_campaigns-----------------------------------------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.marketing_campaigns_clean AS
-WITH deduplicated AS (
-    SELECT
-        campaign_id,
-        campaign_name,
-        campaign_type,
-        product_category,
-        target_audience,
-        start_date,
-        end_date,
-        region,
-        budget,
-        reach,
-        conversion_rate,
-        ROW_NUMBER() OVER (
-            PARTITION BY campaign_id
-            ORDER BY start_date DESC
-        ) AS rn
-    FROM BRONZE.marketing_campaigns
-    WHERE campaign_id IS NOT NULL
-)
-SELECT
-    campaign_id,
-    -- Nettoyage campaign name
-    INITCAP(TRIM(campaign_name)) AS campaign_name,
-    -- Normalisation campaign type
-    INITCAP(TRIM(campaign_type)) AS campaign_type,
-    -- Normalisation product category
-    INITCAP(TRIM(product_category)) AS product_category,
-    -- Normalisation target audience
-    INITCAP(TRIM(target_audience)) AS target_audience,
-    -- dates Campaign 
-    start_date,
-    end_date,
-    -- durée Campaign
-    DATEDIFF(day, start_date, end_date) AS campaign_duration_days,
-    -- Normalisation region
-    UPPER(TRIM(region)) AS region,
-    -- Règles qualité budget 
-    CASE
-        WHEN budget > 0 THEN budget
-        ELSE NULL
-    END AS budget,
-    -- Règles qualité Reach 
-    CASE
-        WHEN reach > 0 THEN reach
-        ELSE NULL
-    END AS reach,
-    -- Conversion_rate 
-    CASE
-        WHEN conversion_rate BETWEEN 0 AND 1
-        THEN conversion_rate
-        ELSE NULL
-    END AS conversion_rate,
-    -- Estimation conversions
-    CASE
-        WHEN reach > 0 AND conversion_rate BETWEEN 0 AND 1
-        THEN reach * conversion_rate
-        ELSE NULL
-    END AS estimated_conversions,
-    -- Coût par contact
-    CASE
-        WHEN budget > 0 AND reach > 0
-        THEN budget / reach
-        ELSE NULL
-    END AS cost_per_contact
-FROM deduplicated
-WHERE rn = 1
-  AND start_date IS NOT NULL
-  AND end_date IS NOT NULL
-  AND start_date <= end_date;
---Vérification de la table SILVER.marketing_campaigns_clean---------------------------------------------------------------
--- Nombre de campagnes
-SELECT COUNT(*) FROM SILVER.marketing_campaigns_clean;
--- Campagnes avec budget invalide
-SELECT *
-FROM SILVER.marketing_campaigns_clean
-WHERE budget IS NULL;
--- Campagnes avec conversion rate invalide
-SELECT *
-FROM SILVER.marketing_campaigns_clean
-WHERE conversion_rate IS NULL;
+CREATE OR REPLACE TABLE SILVER.MARKETING_CAMPAIGNS_CLEAN AS
+SELECT 
+    campaign_id::TEXT AS campaign_id,
+    campaign_name::TEXT AS campaign_name,
+    campaign_type::TEXT AS campaign_type,
+    product_category::TEXT AS product_category,
+    target_audience::TEXT AS target_audience,
+    start_date::DATE AS start_date,
+    end_date::DATE AS end_date,
+    region::TEXT AS region,
+    REGEXP_REPLACE(budget, '[^0-9.]', '')::NUMBER(12,2) AS budget,
+    reach::NUMBER AS reach,
+    REGEXP_REPLACE(conversion_rate, '[^0-9.]', '')::NUMBER(6,4) AS conversion_rate
+FROM BRONZE.MARKETING_CAMPAIGNS
+QUALIFY ROW_NUMBER() OVER (PARTITION BY campaign_id ORDER BY start_date) = 1;
+
+--Affichage de la table SILVER.MARKETING_CAMPAIGNS_CLEAN
+SELECT * FROM SILVER.MARKETING_CAMPAIGNS_CLEAN LIMIT 10;
 
 --6.Nettoyage de la table BRONZE.product_reviews----------------------------------------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.product_reviews_clean AS
-WITH deduplicated AS (
-    SELECT
-        review_id,
-        product_id,
-        reviewer_id,
-        reviewer_name,
-        TRY_TO_NUMBER(rating) AS rating,
-        review_date,
-        review_title,
-        review_text,
-        product_category,
-        ROW_NUMBER() OVER (
-            PARTITION BY review_id
-            ORDER BY review_date DESC
-        ) AS rn
-    FROM BRONZE.product_reviews
-    WHERE review_id IS NOT NULL
+CREATE OR REPLACE TABLE SILVER.PRODUCT_REVIEWS_CLEAN AS
+SELECT 
+    -- 1. REVIEW ID
+    -- On capture la première série de chiffres consécutifs (l'identifiant unique).
+    CAST(REGEXP_SUBSTR(raw_line, '^(\\d+)') AS INTEGER) AS review_id,
+
+    -- 2. PRODUCT ID
+    -- \S+ signifie "tout sauf un espace", parfait pour un ID
+    REGEXP_SUBSTR(raw_line, '^\\d+\\s+(\\S+)', 1, 1, 'e', 1) AS product_id,
+
+    -- 3. REVIEWER ID
+    -- On saute l'ID ligne, l'espace, l'ID produit, l'espace, et on prend le suivant
+    REGEXP_SUBSTR(raw_line, '^\\d+\\s+\\S+\\s+(\\S+)', 1, 1, 'e', 1) AS reviewer_id,
+
+    -- 4. RATING
+    -- On cherche le chiffre unique juste avant la date (YYYY-MM-DD)
+    CAST(REGEXP_SUBSTR(raw_line, '(\\d+)\\s+\\d{4}-\\d{2}-\\d{2}', 1, 1, 'e', 1) AS INTEGER) AS rating,
+
+    -- 5. REVIEW DATE
+    CAST(REGEXP_SUBSTR(raw_line, '\\d{4}-\\d{2}-\\d{2}') AS DATE) AS review_date,
+
+    -- 6. REVIEW TITLE (Heuristique : Première phrase terminée par ponctuation)
+    TRIM(REGEXP_SUBSTR(raw_line, '\\d{2}:\\d{2}:\\d{2}\\s+([^\\.\\!\\?]+[\\.\\!\\?])', 1, 1, 'e', 1)) AS review_title,
+
+    -- 7. REVIEW TEXT (Tout le reste après l'heure)
+    TRIM(REGEXP_SUBSTR(raw_line, '\\d{2}:\\d{2}:\\d{2}\\s+(.*)$', 1, 1, 'e', 1)) AS review_text
+
+FROM BRONZE.PRODUCT_REVIEWS;
+--Affichage de la table SILVER.PRODUCT_REVIEWS_CLEAN
+SELECT * FROM SILVER.PRODUCT_REVIEWS_CLEAN LIMIT 10;
+--Nous avons décidé de supprimer la colonne reviewer_name pour ne conserver que le reviewer_id. Cette décision supprime la redondance d'information et fiabilise notre processus d'ingestion en éliminant les risques d'erreurs liés aux caractères spéciaux souvent présents dans les noms d'utilisateurs.
+--Vérification de la présence des doublons
+WITH verification_doublons AS (
+    -- Votre requête d'origine (mise dans une "boîte" temporaire)
+    SELECT 
+        REVIEW_ID,
+        COUNT(*) as nombre_apparitions
+    FROM SILVER.PRODUCT_REVIEWS_CLEAN
+    GROUP BY REVIEW_ID
+    HAVING COUNT(*) > 1
 )
-SELECT
-    review_id,
-    product_id,
-    reviewer_id,
-    INITCAP(TRIM(reviewer_name)) AS reviewer_name,
-    review_date,
-    -- Validation Rating (SAFE)
-    CASE
-        WHEN rating BETWEEN 1 AND 5 THEN rating
-        ELSE NULL
-    END AS rating,
-    INITCAP(TRIM(review_title)) AS review_title,
-    TRIM(review_text) AS review_text,
-    LENGTH(TRIM(review_text)) AS review_text_length,
+SELECT 
+    CASE 
+        WHEN COUNT(*) > 0 THEN 'ATTENTION : Il y a ' || COUNT(*) || ' doublons dans la table !'
+        ELSE 'SUCCÈS : Aucun doublon trouvé, la table est propre.'
+    END AS MESSAGE_DE_CONTROLE
+FROM verification_doublons;
 
-    CASE
-        WHEN rating >= 4 THEN 'POSITIVE'
-        WHEN rating <= 2 THEN 'NEGATIVE'
-        ELSE 'NEUTRAL'
-    END AS review_sentiment,
-
-    INITCAP(TRIM(product_category)) AS product_category
-FROM deduplicated
-WHERE rn = 1
-  AND review_date IS NOT NULL;
-
- --Vérification de la table SILVER.product_reviews_clean--------------------------
--- Nombre total d’avis
-SELECT COUNT(*) FROM SILVER.product_reviews_clean;
--- Vérifier les notes invalides
-SELECT *
-FROM SILVER.product_reviews_clean
-WHERE rating IS NULL;
--- Répartition des sentiments
-SELECT review_sentiment, COUNT(*)
-FROM SILVER.product_reviews_clean
-GROUP BY review_sentiment;
 --7.Nettoyage de la table BRONZE.inventory----------------------------------------------------------------------------------
+CREATE OR REPLACE TABLE SILVER.INVENTORY_CLEAN AS
+SELECT 
+    -- 1. Textes
+    $1:product_id::TEXT       AS product_id,
+    $1:product_category::TEXT AS product_category,
+    $1:warehouse::TEXT        AS warehouse,
+    $1:region::TEXT           AS region,
+    $1:country::TEXT          AS country,
+    $1:current_stock::INTEGER AS current_stock,
+    $1:reorder_point::INTEGER AS reorder_point,
+    $1:lead_time::INTEGER     AS lead_time,
+    $1:last_restock_date::DATE AS last_restock_date
 
-CREATE OR REPLACE TABLE SILVER.inventory_clean AS
-WITH parsed_inventory AS (
-    SELECT
-        raw_data:product_id::STRING AS product_id,
-        raw_data:product_category::STRING AS product_category,
-        raw_data:region::STRING AS region,
-        raw_data:country::STRING AS country,
-        raw_data:warehouse::STRING AS warehouse,
-        raw_data:current_stock::NUMBER AS current_stock,
-        raw_data:reorder_point::NUMBER AS reorder_point,
-        raw_data:lead_time::NUMBER AS lead_time,
-        raw_data:last_restock_date::DATE AS last_restock_date
-    FROM BRONZE.inventory
-),
+FROM BRONZE.INVENTORY
+WHERE product_id IS NOT NULL
+-- Dédoublonnage strict
+QUALIFY ROW_NUMBER() OVER (PARTITION BY product_id, warehouse ORDER BY last_restock_date DESC) = 1;
 
-deduplicated AS (
-    SELECT
-        *,
-        ROW_NUMBER() OVER (
-            PARTITION BY product_id, region, warehouse
-            ORDER BY last_restock_date DESC
-        ) AS rn
-    FROM parsed_inventory
-    WHERE product_id IS NOT NULL
-)
-
-SELECT
-    product_id,
-
-    -- Normalize product category
-    INITCAP(TRIM(product_category)) AS product_category,
-
-    -- Normalize location fields
-    UPPER(TRIM(region)) AS region,
-    INITCAP(TRIM(country)) AS country,
-    INITCAP(TRIM(warehouse)) AS warehouse,
-
-    -- Stock validation
-    CASE
-        WHEN current_stock >= 0 THEN current_stock
-        ELSE NULL
-    END AS current_stock,
-
-    -- Reorder point validation
-    CASE
-        WHEN reorder_point >= 0 THEN reorder_point
-        ELSE NULL
-    END AS reorder_point,
-
-    -- Lead time validation (days)
-    CASE
-        WHEN lead_time > 0 THEN lead_time
-        ELSE NULL
-    END AS lead_time,
-
-    -- Last restock date
-    last_restock_date,
-
-    -- Stock status
-    CASE
-        WHEN current_stock = 0 THEN 'OUT_OF_STOCK'
-        WHEN current_stock <= reorder_point THEN 'LOW_STOCK'
-        ELSE 'IN_STOCK'
-    END AS stock_status,
-
-    -- Restock flag
-    CASE
-        WHEN current_stock <= reorder_point THEN TRUE
-        ELSE FALSE
-    END AS needs_restock
-
-FROM deduplicated
-WHERE rn = 1;
-
---Vérification de la table SILVER.inventory_clean-----------------------------------------------
--- Nombre de lignes
-SELECT COUNT(*) FROM SILVER.inventory_clean;
--- Produits en rupture
-SELECT *
-FROM SILVER.inventory_clean
-WHERE stock_status = 'OUT_OF_STOCK';
--- Produits à réapprovisionner
-SELECT *
-FROM SILVER.inventory_clean
-WHERE needs_restock = TRUE;
+--Affichage de la table SILVER.INVENTORY_CLEAN
+SELECT * FROM SILVER.INVENTORY_CLEAN LIMIT 10;
 --8.Nettoyage de la table BRONZE.store_locations----------------------------------------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.store_locations_clean AS
-WITH parsed_stores AS (
-    SELECT
-        raw_data:store_id::STRING AS store_id,
-        raw_data:store_name::STRING AS store_name,
-        raw_data:store_type::STRING AS store_type,
-        raw_data:region::STRING AS region,
-        raw_data:country::STRING AS country,
-        raw_data:city::STRING AS city,
-        raw_data:address::STRING AS address,
-        raw_data:postal_code::STRING AS postal_code,
-        raw_data:square_footage::NUMBER AS square_footage,
-        raw_data:employee_count::NUMBER AS employee_count
-    FROM BRONZE.store_locations
-),
+CREATE OR REPLACE TABLE SILVER.STORE_LOCATIONS_CLEAN AS
+SELECT 
+    $1:store_id::TEXT    AS store_id,
+    $1:store_name::TEXT  AS store_name,
+    $1:store_type::TEXT  AS store_type,
+    $1:address::TEXT     AS address,
+    $1:city::TEXT        AS city,
+    $1:postal_code::TEXT AS postal_code,
+    $1:region::TEXT      AS region,
+    $1:country::TEXT     AS country,
+    $1:square_footage::NUMBER(10, 2) AS square_footage,
+    $1:employee_count::INTEGER       AS employee_count
 
-deduplicated AS (
-    SELECT
-        *,
-        ROW_NUMBER() OVER (
-            PARTITION BY store_id
-            ORDER BY store_id
-        ) AS rn
-    FROM parsed_stores
-    WHERE store_id IS NOT NULL
+FROM BRONZE.STORE_LOCATIONS
+WHERE store_id IS NOT NULL
+-- Dédoublonnage strict
+QUALIFY ROW_NUMBER() OVER (PARTITION BY store_id ORDER BY store_id) = 1;
+
+WITH verification_doublons AS (
+    SELECT store_id, COUNT(*) as nombre_apparitions
+    FROM SILVER.STORE_LOCATIONS_CLEAN
+    GROUP BY store_id HAVING COUNT(*) > 1
 )
+SELECT 
+    CASE 
+        WHEN COUNT(*) > 0 THEN 'ATTENTION : Il y a ' || COUNT(*) || ' doublons d''ID magasin !'
+        ELSE 'SUCCÈS : Aucun doublon trouvé.'
+    END AS RAPPORT_DOUBLONS
+FROM verification_doublons;
 
-SELECT
-    store_id,
+SELECT 
+    CASE 
+        WHEN COUNT(*) = 0 THEN 'ATTENTION : La table est vide !'
+        WHEN COUNT_IF(store_id IS NULL OR city IS NULL OR square_footage IS NULL) = 0 
+        THEN 'Aucune valeur manquante, le dataset est complet à 100%.'
+        
+        ELSE 'VALEURS MANQUANTES : ' ||
+             'ID ('     || TO_VARCHAR(ROUND(COUNT_IF(store_id IS NULL)       / NULLIF(COUNT(*),0) * 100, 1)) || '%) | ' ||
+             'Ville ('  || TO_VARCHAR(ROUND(COUNT_IF(city IS NULL)           / NULLIF(COUNT(*),0) * 100, 1)) || '%) | ' ||
+             'Surface ('|| TO_VARCHAR(ROUND(COUNT_IF(square_footage IS NULL) / NULLIF(COUNT(*),0) * 100, 1)) || '%)'
+    END AS RAPPORT_COMPLETUDE
+FROM SILVER.STORE_LOCATIONS_CLEAN;
 
-    -- Store name
-    INITCAP(TRIM(store_name)) AS store_name,
+SELECT 
+    CASE 
+        WHEN COUNT(*) = 0 THEN 'Aucune anomalie détectée'
+        ELSE 'QUALITÉ MÉTIER : ' || COUNT(*) || ' lignes bizarres (Surface <= 0 ou Employés < 0).'
+    END AS RAPPORT_QUALITE_METIER
+FROM SILVER.STORE_LOCATIONS_CLEAN
+WHERE 
+    square_footage <= 0 
+    OR employee_count < 0;
 
-    -- Normalize store type
-    INITCAP(TRIM(store_type)) AS store_type,
+--Affichage de la table SILVER.STORE_LOCATIONS_CLEAN
+SELECT * FROM SILVER.STORE_LOCATIONS_CLEAN LIMIT 10;
 
-    -- Normalize location fields
-    UPPER(TRIM(region)) AS region,
-    INITCAP(TRIM(country)) AS country,
-    INITCAP(TRIM(city)) AS city,
-
-    -- Clean address
-    TRIM(address) AS address,
-
-    -- Postal code
-    postal_code,
-
-    -- Square footage validation
-    CASE
-        WHEN square_footage > 0 THEN square_footage
-        ELSE NULL
-    END AS square_footage,
-
-    -- Employee count validation
-    CASE
-        WHEN employee_count >= 0 THEN employee_count
-        ELSE NULL
-    END AS employee_count,
-
-    -- Store size category
-    CASE
-        WHEN square_footage < 3000 THEN 'SMALL'
-        WHEN square_footage BETWEEN 3000 AND 7000 THEN 'MEDIUM'
-        ELSE 'LARGE'
-    END AS store_size_category,
-
-    -- Employees per 1000 sqft
-    CASE
-        WHEN square_footage > 0 AND employee_count >= 0
-        THEN (employee_count / square_footage) * 1000
-        ELSE NULL
-    END AS employees_per_1000_sqft
-
-FROM deduplicated
-WHERE rn = 1;
-
---Vérification table SILVER.store_locations_clean-----------------------------------------------------------------------------------
--- Nombre de magasins
-SELECT COUNT(*) FROM SILVER.store_locations_clean;
--- Magasins sans surface valide
-SELECT *
-FROM SILVER.store_locations_clean
-WHERE square_footage IS NULL;
--- Répartition par taille
-SELECT store_size_category, COUNT(*)
-FROM SILVER.store_locations_clean
-GROUP BY store_size_category;
 --9. Nettoyage de la table BRONZE.logistics_and_shipping----------------------------------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.logistics_and_shipping_clean AS
-WITH deduplicated AS (
-    SELECT
-        shipment_id,
-        order_id,
-        ship_date,
-        estimated_delivery,
-        shipping_method,
-        status,
-        shipping_cost,
-        destination_region,
-        destination_country,
-        carrier,
-        ROW_NUMBER() OVER (
-            PARTITION BY shipment_id
-            ORDER BY ship_date DESC
-        ) AS rn
-    FROM BRONZE.logistics_and_shipping
-    WHERE shipment_id IS NOT NULL
-)
-SELECT
-    shipment_id,
-    order_id,
-    -- Dates d'expédition
-    ship_date,
-    estimated_delivery,
-    -- Delai de livraison estimé (jours)
-    DATEDIFF(day, ship_date, estimated_delivery) AS estimated_delivery_days,
-    -- Normalisation shipping_method
-    INITCAP(TRIM(shipping_method)) AS shipping_method,
-    -- Normalisation status
-    CASE
-        WHEN UPPER(status) = 'DELIVERED' THEN 'DELIVERED'
-        WHEN UPPER(status) = 'SHIPPED' THEN 'SHIPPED'
-        WHEN UPPER(status) = 'IN TRANSIT' THEN 'IN_TRANSIT'
-        WHEN UPPER(status) = 'RETURNED' THEN 'RETURNED'
-        ELSE 'UNKNOWN'
-    END AS status,
-    -- Validation Shipping_cost 
-    CASE
-        WHEN shipping_cost >= 0 THEN shipping_cost
-        ELSE NULL
-    END AS shipping_cost,
-    -- Normalisation destination
-    UPPER(TRIM(destination_region)) AS destination_region,
-    INITCAP(TRIM(destination_country)) AS destination_country,
-    -- Nettoyage carrier 
-    INITCAP(TRIM(carrier)) AS carrier,
-    -- Indicateur retours
-    CASE
-        WHEN UPPER(status) = 'RETURNED' THEN TRUE
-        ELSE FALSE
-    END AS is_returned,
-    -- Indicateur problème de livraison
-    CASE
-        WHEN estimated_delivery IS NULL
-             OR ship_date IS NULL
-             OR estimated_delivery < ship_date
-        THEN TRUE
-        ELSE FALSE
-    END AS delivery_issue
-FROM deduplicated
-WHERE rn = 1;
---Vérification de la table SILVER.logistics_and_shipping_clean---------------------------------------------------------------------------
--- Nombre total d’expéditions
-SELECT COUNT(*) FROM SILVER.logistics_and_shipping_clean;
--- Expéditions avec problème de dates
-SELECT *
-FROM SILVER.logistics_and_shipping_clean
-WHERE delivery_issue = TRUE;
--- Taux de retours
-SELECT
-  COUNT_IF(is_returned = TRUE) * 100.0 / COUNT(*) AS return_rate_pct
-FROM SILVER.logistics_and_shipping_clean;
+CREATE OR REPLACE TABLE SILVER.LOGISTICS_AND_SHIPPING_CLEAN AS
+SELECT 
+    shipment_id::TEXT AS shipment_id,
+    order_id::INTEGER AS order_id,
+    ship_date::DATE AS ship_date,
+    estimated_delivery::DATE AS estimated_delivery,
+    shipping_method::TEXT AS shipping_method,
+    status::TEXT AS status,
+    REGEXP_REPLACE(shipping_cost, '[^0-9.]', '')::FLOAT AS shipping_cost,
+    destination_region::TEXT AS destination_region,
+    destination_country::TEXT AS destination_country,
+    carrier::TEXT AS carrier
+FROM BRONZE.LOGISTICS_AND_SHIPPING
+QUALIFY ROW_NUMBER() OVER (PARTITION BY shipment_id ORDER BY ship_date) = 1;
+
+--Affichage de la table SILVER.LOGISTICS_AND_SHIPPING_CLEAN
+SELECT * FROM SILVER.LOGISTICS_AND_SHIPPING_CLEAN LIMIT 10;
+
 --10. Nettoyage de la table BRONZE.supplier_information----------------------------------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.supplier_information_clean AS
-WITH deduplicated AS (
-    SELECT
-        supplier_id,
-        supplier_name,
-        product_category,
-        region,
-        country,
-        city,
-        lead_time,
-        reliability_score,
-        quality_rating,
-        ROW_NUMBER() OVER (
-            PARTITION BY supplier_id
-            ORDER BY reliability_score DESC
-        ) AS rn
-    FROM BRONZE.supplier_information
-    WHERE supplier_id IS NOT NULL
-)
-SELECT
-    supplier_id,
-    -- Supplier_name
-    INITCAP(TRIM(supplier_name)) AS supplier_name,
-    -- Normalisation product_category
-    INITCAP(TRIM(product_category)) AS product_category,
-    -- Normalisation region
-    UPPER(TRIM(region)) AS region,
-    INITCAP(TRIM(country)) AS country,
-    INITCAP(TRIM(city)) AS city,
-    -- Validation Lead_time (jours)
-    CASE
-        WHEN lead_time > 0 THEN lead_time
-        ELSE NULL
-    END AS lead_time,
-    -- Validation reliability_score 
-    CASE
-        WHEN reliability_score BETWEEN 0 AND 1
-        THEN reliability_score
-        ELSE NULL
-    END AS reliability_score,
-    --Normalisation quality_rating 
-    CASE
-        WHEN UPPER(quality_rating) IN ('A', 'B', 'C')
-        THEN UPPER(quality_rating)
-        ELSE 'UNKNOWN'
-    END AS quality_rating,
-    -- Category reliability 
-    CASE
-        WHEN reliability_score >= 0.85 THEN 'HIGH'
-        WHEN reliability_score BETWEEN 0.70 AND 0.84 THEN 'MEDIUM'
-        ELSE 'LOW'
-    END AS reliability_category,
-    -- Score mondial des fournisseurs 
-    CASE
-        WHEN reliability_score IS NOT NULL AND lead_time IS NOT NULL
-        THEN reliability_score * (1 / lead_time)
-        ELSE NULL
-    END AS supplier_global_score
-FROM deduplicated
-WHERE rn = 1;
---Vérification de la table SILVER.supplier_information_clean-------------------------------------------------------------------
--- Nombre de fournisseurs
-SELECT COUNT(*) FROM SILVER.supplier_information_clean;
--- Fournisseurs avec score invalide
-SELECT *
-FROM SILVER.supplier_information_clean
-WHERE reliability_score IS NULL;
--- Répartition par catégorie de fiabilité
-SELECT reliability_category, COUNT(*)
-FROM SILVER.supplier_information_clean
-GROUP BY reliability_category;
+CREATE OR REPLACE TABLE SILVER.SUPPLIER_INFORMATION_CLEAN AS
+SELECT 
+    supplier_id::TEXT AS supplier_id,
+    supplier_name::TEXT AS supplier_name,
+    product_category::TEXT AS product_category,
+    region::TEXT AS region,
+    country::TEXT AS country,
+    city::TEXT AS city,
+    lead_time::INTEGER AS lead_time,
+    reliability_score::FLOAT AS reliability_score,
+    quality_rating::TEXT AS quality_rating
+FROM BRONZE.SUPPLIER_INFORMATION
+QUALIFY ROW_NUMBER() OVER (PARTITION BY supplier_id ORDER BY supplier_id) = 1;
+
+--Affichage de la table SILVER.SUPPLIER_INFORMATION_CLEAN
+SELECT * FROM SILVER.SUPPLIER_INFORMATION_CLEAN LIMIT 10;
 --11. Nettoyage de la table BRONZE.employee_records---------------------------------------------------------------------------
-CREATE OR REPLACE TABLE SILVER.employee_records_clean AS
-WITH deduplicated AS (
-    SELECT
-        employee_id,
-        name,
-        date_of_birth,
-        hire_date,
-        department,
-        job_title,
-        salary,
-        region,
-        country,
-        email,
-        ROW_NUMBER() OVER (
-            PARTITION BY employee_id
-            ORDER BY hire_date DESC
-        ) AS rn
-    FROM BRONZE.employee_records
-    WHERE employee_id IS NOT NULL
-)
-SELECT
-    employee_id,
-    -- Employee_name
-    INITCAP(TRIM(name)) AS employee_name,
-    -- Dates
-    date_of_birth,
-    hire_date,
-    -- Age calculation
-    DATEDIFF(year, date_of_birth, CURRENT_DATE()) AS age,
-    -- Calcul de la titularisation (ans)
-    DATEDIFF(year, hire_date, CURRENT_DATE()) AS tenure_years,
-    -- Normalisation department
-    INITCAP(TRIM(department)) AS department,
-    -- Normalisation job_title
-    INITCAP(TRIM(job_title)) AS job_title,
-    -- Validation salaire
-    CASE
-        WHEN salary > 0 THEN salary
-        ELSE NULL
-    END AS salary,
-    -- Catégorisation salaire
-    CASE
-        WHEN salary < 50000 THEN 'LOW'
-        WHEN salary BETWEEN 50000 AND 100000 THEN 'MEDIUM'
-        ELSE 'HIGH'
-    END AS salary_category,
-    -- Normalisation region
-    UPPER(TRIM(region)) AS region,
-    INITCAP(TRIM(country)) AS country,
-    -- Nettoyage email 
-    LOWER(TRIM(email)) AS email
-FROM deduplicated
-WHERE rn = 1
-  AND hire_date >= date_of_birth;
---Vérification de la table SILVER.employee_records_clean----------------------------------------------------------------------
--- Nombre total d’employés
-SELECT COUNT(*) FROM SILVER.employee_records_clean;
--- Employés avec salaire invalide
-SELECT *
-FROM SILVER.employee_records_clean
-WHERE salary IS NULL;
--- Répartition par département
-SELECT department, COUNT(*)
-FROM SILVER.employee_records_clean
-GROUP BY department;
+CREATE OR REPLACE TABLE SILVER.EMPLOYEE_RECORDS_CLEAN AS
+SELECT 
+    employee_id::TEXT AS employee_id,
+    name::TEXT AS name,
+    date_of_birth::DATE AS date_of_birth,
+    hire_date::DATE AS hire_date,
+    department::TEXT AS department,
+    job_title::TEXT AS job_title,
+    REGEXP_REPLACE(salary, '[^0-9.]', '')::FLOAT AS salary,
+    region::TEXT AS region,
+    country::TEXT AS country,
+    email::TEXT AS email
+FROM BRONZE.EMPLOYEE_RECORDS
+QUALIFY ROW_NUMBER() OVER (PARTITION BY employee_id ORDER BY hire_date DESC) = 1;
+
+--Affichage de la table SILVER.EMPLOYEE_RECORDS_CLEAN
+SELECT * FROM SILVER.EMPLOYEE_RECORDS_CLEAN LIMIT 10;
+-----------------------------------------------------------------
