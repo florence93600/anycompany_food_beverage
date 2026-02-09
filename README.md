@@ -1,117 +1,96 @@
-# anycompany_food_beverage – Data Analytics Project
 
 
-## Description du Projet
-Ce projet vise à analyser les performances commerciales, marketing, logistiques et l’expérience client de l’entreprise **AnyCompany Food & Beverage** à partir de données hétérogènes stockées dans **Snowflake**.  
+# 📋 Présentation du Projet
 
-L’architecture suit une approche **Data Lake / Medallion** avec des couches **Bronze** et **Silver**, et les résultats sont exploités via des requêtes SQL analytiques et des **dashboards interactifs Streamlit**.
+Ce projet consiste en la transformation complète de la chaîne de valeur des données d'AnyCompany. Nous avons mis en place une architecture robuste sur **Snowflake** et développé des solutions d'intelligence analytique avec **Python**. Le pipeline couvre l'ingestion (**Bronze**), le nettoyage (**Silver**), la structuration métier (**Analytics**) et l'analyse prédictive (**ML**).
 
-## 🏗️ Architecture des données
+# 👥 L'Équipe & Répartition des Tâches
 
-### 🔹 BRONZE
-Création de 11 tables définies toutes avec les colonnes au format texte afin d’éviter tout échec de chargement, même lorsqu’une valeur est incorrectement formatée (par exemple une date indiquée « N/A »). Les données brutes sont chargées depuis des fichiers **CSV**et  **JSON**
+Ce travail est le fruit d'une collaboration structurée :
 
-### 🔸 SILVER
-* Données nettoyées, structurées et typées
-* Suppression des valeurs nulles incohérentes
-* Normalisation des dates et champs numériques
-* Tables prêtes pour l’analyse
+# 📂 Structure du Répertoire
 
-## Tables créées et utilisées dans SILVER
+# ⚙️ Installation & Prérequis
 
-* SILVER.financial_transactions_clean
-* SILVER.inventory_clean
-* SILVER.logistics_and_shipping_clean
-* SILVER.customer_demographics_clean
-* SILVER.customer_service_interactions_clean
-* SILVER.marketing_campaigns_clean
-* SILVER.promotions_data_clean
-* SILVER.store_locations_clean
-* SILVER.employee_records_clean
-* SILVER.supplier_information_clean
-* SILVER.product_reviews_clean
+# 🚀 Workflow Technique
 
- ⚠️ Certaines tables ne partagent pas de clés communes exploitables. Les analyses ont donc été réalisées à un **niveau global ou agrégé**, conformément aux bonnes pratiques en data analytics.
+* **Ingestion & Nettoyage** : Passage des données brutes vers un état "Ready-to-use" (SILVER).
+* **Audit Automatisé** : Contrôle d'intégrité via une procédure stockée Python dans Snowflake.
+* **Analytics Engineering** : Création de tables orientées métier (CUSTOMER_360, SALES_HISTORY).
+* **Intelligence Artificielle** : Extraction de la polarité des avis clients par traitement du langage naturel (NLP).
 
-## 📈 Analyses réalisées
+**Parties Communes** : Design de l'architecture Cloud, Gouvernance des données et Standardisation du schéma SILVER.
 
-### 💰 Performance commerciale
-- Évolution des ventes dans le temps
-- Performance par produit, catégorie et région
-- Comparaison ventes avec / sans promotion
-- Sensibilité des catégories aux promotions
--L'examen des cycles de transactions met en évidence une base client solide mais une réactivité promotionnelle hétérogène.
+**Technologies utilisées**
 
-### 📢 Marketing
-- Lien entre campagnes marketing et ventes
-- Identification des campagnes les plus efficaces
+* *Base de données* : Snowflake (SQL)
+* *Langage* : Python 3.x
+* VS Code
+* Git et GitHub
+* Google Meet (pour des réunions)
 
-### 👥 Clients & expérience client
-- Répartition des clients par segments démographiques
-- Impact global des avis produits sur les ventes
-- Influence des interactions avec le service client
+**Librairies principales** - Pandas (Manipulation de données)
 
-### 🚚 Supply Chain & logistique
-- Analyse des ruptures de stock
-- Identification des catégories les plus touchées
-- Impact des délais de livraison
-- Indicateurs globaux de risque logistique
+* Matplotlib & Seaborn (Visualisations avancées)
+* SQLAlchemy (Moteur de connexion)
+* VADER (Analyse de sentiment lexicale)
 
-##Interprétation des analyses réalisées
+# Répartition des tâches
 
-### Analyse des Ventes (fichier sales_trends.sql)
-* Analyse 2.3.1.1 – Comparaison Avec vs Sans Promotion
--Interprétation : Les données confirment que les campagnes promotionnelles tirent le panier moyen vers le haut. On passe de 5 009,16 $ en période normale à 5 308,83 $ sous promotion.
--Constat : Cela représente une hausse de 5,9% de la valeur des transactions. Les promotions ne servent pas seulement à vendre plus en volume, elles incitent les clients à monter en gamme ou à ajouter des articles au panier.
+# Florence : Data Preparation & Ingestion
 
-* Analyse 2.3.1.2 – Lift par Catégorie (Sensibilité)
-- Interprétation : Le "Lift" mesure l'efficacité réelle. La catégorie Organic Snacks est la grande gagnante avec un Lift de +11,50%. C'est ici que l'élasticité-prix est la plus forte.
--Constat : À l'inverse, les Organic Beverages affichent un score négatif (-1,32%). Cela signifie que faire une promotion sur les boissons est contre-productif : on baisse le prix mais le panier moyen ne décolle pas, ce qui détruit de la marge sans gain de performance.
+## Activités réalisées
 
-### Analyse marketing et performance commerciale (fichier campaign_performance.sql)
-* Analyse 2.3.2.1 – Rentabilité par Canal (ROI)
--Interprétation : Pour respecter la baisse de 30% du budget, l'analyse identifie les canaux prioritaires. La Radio et l'Emailing sont les plus efficaces pour convertir avec des taux proches de 5,75%.
--Constat : Cependant, en termes de valeur brute, les Social Media attirent les clients à plus fort pouvoir d'achat (Panier moyen de 5 043,88 $). Le ROI calculé étant homogène, la stratégie doit basculer sur un mix "Radio pour le volume" et "Social pour la valeur".
+1. Préparer l’environnement Snowflake.
+2. Créer les différentes tables.
+3. Charger les données.
+4. Vérifications et nettoyage des données (data cleaning) pour la fiabilité des données.
 
-### Analyse 2.3.3.1 & 2 – Expérience Client (Avis et SAV)
--Interprétation : Les produits plaisent (note de 4,08/5), mais la fidélisation est en danger. Le taux de résolution du Service Après-Vente est critique : seulement 32,08% des problèmes sont résolus.
--Constat : Ce faible taux de résolution est probablement la cause principale de la chute de part de marché (28% à 22%). Un client mécontent dont le problème n'est pas résolu partira chez la concurrence, peu importe la qualité du produit.-
+## Mode opératoire :
 
+1. Se connecter au compte Snowflake du projet :
+[snowflake]
+user = "FJCMMBAESG"
+password = "Fjcmmbaesg020226!"
+account = "BPHEGZS-EHB57068"
+warehouse = "COMPUTE_WH"
+database = "ANYCOMPANY_LAB"
+schema = "SILVER"
+2. Ouvrir le fichier SQL `load_data.sql` et lancer les codes bloc par bloc pour assurer une bonne exécution des requêtes.
+3. Ouvrir le fichier SQL `Clean_data.sql` et lancer les codes bloc par bloc pour assurer le bon chargement des données.
 
-## 🧮 Technologies utilisées
+# Carole : Exploration des données et analyses business
 
-- **Snowflake** (Data Warehouse)
-- **SQL** (Snowflake SQL)
-- **Python 3**
-- **Streamlit**
-- **Plotly**
-- **Git & GitHub**
-- **VS Code**
-- **Librairies principales** : 
-  - `Pandas` (Manipulation de données)
-  - `Matplotlib` & `Seaborn` (Visualisations avancées)
-  - `SQLAlchemy` (Moteur de connexion)
-  - `VADER` (Analyse de sentiment lexicale)
+## Activités réalisées
 
-## 📊 Dashboards Streamlit
+1. Assurer la compréhension des jeux de données.
+2. Faire des analyses exploratoires descriptives (Les 11 tables du schéma SILVER).
+3. Faire des analyses business transverses (fichier `campaign_performance.sql`, `promotion_impact.sql`, fichier `sales_trends.sql`).
+
+## Mode opératoire
+
+Pour arriver à voir l'ensemble des analyses, il faut :
+
+1. Lancer les fichiers dédiés à la préparation de données.
+2. Lancer chaque fichier et les codes bloc par bloc pour visualiser chaque analyse séparément.
+
+# Marie Paule : Visualisations Streamlit
+
+## Objectif
 
 Les dashboards interactifs permettent :
-* la visualisation des ventes dans le temps
-* l’analyse par région et catégorie
-* l’exploration des indicateurs supply chain
-* le suivi de l’expérience client
 
-📦 Installation & lancement 
+* La visualisation des ventes dans le temps.
+* L’analyse par région et catégorie.
+* L’exploration des indicateurs supply chain.
+* Le suivi de l’expérience client.
 
-1. Cloner le projet
-git clone https://github.com/florence93600/anycompany_food_beverage
-cd anycompany-lab
+## Mode opératoire
 
-2. Installer les dépendances
-pip install streamlit snowflake-connector-python pandas plotly
-
-3. Configurer la connexion Snowflake
-Créer le fichier .streamlit/secrets.toml à la racine du projet :
+1. Cloner le projet : `git clone https://github.com/florence93600/anycompany_food_beverage`
+2. Installer les dépendances : `pip install streamlit snowflake-connector-python pandas plotly`
+3. Configurer la connexion Snowflake :
+* Créer le fichier `.streamlit/secrets.toml` à la racine du projet :
 [snowflake]
 user = "FJCMMBAESG"
 password = "Fjcmmbaesg020226!"
@@ -119,39 +98,28 @@ account = "bphegzs-ehb57068"
 warehouse = "COMPUTE_WH"
 database = "ANYCOMPANY_LAB"
 schema = "SILVER"
-
-Ce fichier contient des identifiants : il ne doit jamais être ajouté sur GitHub.
-
-4. Lancer les dashboards
-Depuis le dossier anycompany_food_beverage :
-
-# Dashboard Ventes & clients
-streamlit run streamlit/sales_dashboard.py
-
-# Dashboard Promotions, Stock & Logistique
-streamlit run streamlit/promotion_analysis.py
-
-# Dashboard Marketing ROI & Expérience client
-streamlit run streamlit/marketing_roi.py
-
-Les dashboards s’ouvrent sur : http://localhost:8501
-
-# AnyCompany Food & Beverage - Analyse de Sentiment & ML
-
-Ce projet vise à extraire des insights stratégiques à partir des données de consommation et des avis clients stockés sur **Snowflake**. En l'absence de relations explicites entre les tables, nous avons implémenté une analyse de sentiment (NLP) pour piloter l'expérience client.
-
-## Objectifs du Projet
-- **Connexion Data Cloud** : Établir un pont robuste entre Snowflake et un environnement de Data Science local.
-- **Analyse de Sentiment (VADER)** : Transformer +1000 avis clients non structurés en scores quantitatifs.
-- **Reporting Stratégique** : Identifier les tendances de satisfaction sur la période 2020-2025 pour orienter les décisions business.
-
-## Résultats Clés
-- **Validation du Modèle** : Corrélation confirmée entre les notes (1-5) et le score de sentiment *Compound*.
-- **Volume vs Satisfaction** : Identification d'un pic de croissance en 2024 corrélé à une légère érosion de l'intensité positive (passage d'un sentiment de 0.85 à 0.65).
-- **Structure des Avis** : 80% des retours clients sont d'ordre factuel/neutre, démontrant une marque établie et fiable.
-
-## Structure du Repo
-- `phase3_machine_learning.ipynb` : Notebook principal contenant l'analyse exploratoire, le pipeline VADER et les visualisations.
-- `venv/` : Environnement virtuel (non inclus dans Git).
+*P.S.* Ce fichier contient des identifiants : il ne doit jamais être ajouté sur GitHub.
 
 
+4. Lancer les dashboards depuis le dossier `anycompany_food_beverage` :
+* Dashboard Ventes & clients : `streamlit run streamlit/sales_dashboard.py`
+* Dashboard Promotions, Stock & Logistique : `streamlit run streamlit/promotion_analysis.py`
+* Dashboard Marketing ROI & Expérience client : `streamlit run streamlit/marketing_roi.py`
+*P.S.* Les dashboards s’ouvrent sur : http://localhost:8501
+
+# Missael : Data Products & Machine Learning
+
+## Activités réalisées
+
+1. Enrichir et renommer 4 tables de Data Product (CUSTOMER_360, SALES_HISTORY, MARKETING_INITIATIVES, PRODUCT_SENTIMENT).
+2. Réaliser l'analyse de sentiment afin de découvrir le ressenti ou l'expérience globale des clients par rapport à l'entreprise.
+
+*P.S.* Ces activités ont été réalisées sur VS Code en raison des contraintes rencontrées avec Snowflake, surtout lors de l'installation des packages Python nécessaires pour les analyses.
+
+## Mode opératoire :
+
+1. Préparer l'environnement de VS Code pour supporter les trois langages (Python, SQL et Markdown).
+2. Installer les packages (`pandas`, `numpy`, `matplotlib`, `seaborn`, `vaderSentiment`, `sqlalchemy`, `snowflake-sqlalchemy`, `ipython-sql`).
+3. S'assurer que les tables sont disponibles dans le schéma SILVER sur Snowflake.
+4. Connexion de VS Code aux données sources de Snowflake (tables dans SILVER).
+5. Lancer le notebook (Run all).
