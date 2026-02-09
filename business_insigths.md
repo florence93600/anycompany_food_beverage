@@ -40,5 +40,5 @@ INTERPRÉTATION BUSINESS : OPÉRATIONS & LOGISTIQUE
 * BLOCAGE : Le problème est en amont : le délai fournisseur (Lead Time) moyen de 55 jours est 
   trop long pour l'agilité requise par le marché.
 * ACTION : Réduire ce délai à 30 jours est impératif pour sécuriser la croissance.
-================================================================================
+==================================================================================
 
