@@ -87,6 +87,11 @@ Création de 11 tables définies toutes avec les colonnes au format texte afin d
 - **Plotly**
 - **Git & GitHub**
 - **VS Code**
+- **Librairies principales** : 
+  - `Pandas` (Manipulation de données)
+  - `Matplotlib` & `Seaborn` (Visualisations avancées)
+  - `SQLAlchemy` (Moteur de connexion)
+  - `VADER` (Analyse de sentiment lexicale)
 
 ## 📊 Dashboards Streamlit
 
@@ -115,7 +120,7 @@ warehouse = "COMPUTE_WH"
 database = "ANYCOMPANY_LAB"
 schema = "SILVER"
 
-⚠️ Ce fichier contient des identifiants : il ne doit jamais être ajouté sur GitHub.
+Ce fichier contient des identifiants : il ne doit jamais être ajouté sur GitHub.
 
 4. Lancer les dashboards
 Depuis le dossier anycompany_food_beverage :
@@ -130,5 +135,23 @@ streamlit run streamlit/promotion_analysis.py
 streamlit run streamlit/marketing_roi.py
 
 Les dashboards s’ouvrent sur : http://localhost:8501
+
+# AnyCompany Food & Beverage - Analyse de Sentiment & ML
+
+Ce projet vise à extraire des insights stratégiques à partir des données de consommation et des avis clients stockés sur **Snowflake**. En l'absence de relations explicites entre les tables, nous avons implémenté une analyse de sentiment (NLP) pour piloter l'expérience client.
+
+## Objectifs du Projet
+- **Connexion Data Cloud** : Établir un pont robuste entre Snowflake et un environnement de Data Science local.
+- **Analyse de Sentiment (VADER)** : Transformer +1000 avis clients non structurés en scores quantitatifs.
+- **Reporting Stratégique** : Identifier les tendances de satisfaction sur la période 2020-2025 pour orienter les décisions business.
+
+## Résultats Clés
+- **Validation du Modèle** : Corrélation confirmée entre les notes (1-5) et le score de sentiment *Compound*.
+- **Volume vs Satisfaction** : Identification d'un pic de croissance en 2024 corrélé à une légère érosion de l'intensité positive (passage d'un sentiment de 0.85 à 0.65).
+- **Structure des Avis** : 80% des retours clients sont d'ordre factuel/neutre, démontrant une marque établie et fiable.
+
+## Structure du Repo
+- `phase3_machine_learning.ipynb` : Notebook principal contenant l'analyse exploratoire, le pipeline VADER et les visualisations.
+- `venv/` : Environnement virtuel (non inclus dans Git).
 
 
